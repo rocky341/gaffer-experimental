@@ -106,13 +106,6 @@ public class GraphController {
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
-    @GetMapping(path = "/namespaces", produces = "application/json")
-    public ResponseEntity<?> getNamespaces(@RequestHeader final HttpHeaders headers) throws GaaSRestApiException {
-        final List<String> namespaces = getNamespacesService.getNamespaces();
-        return new ResponseEntity(namespaces, HttpStatus.OK);
-    }
-
-
 
     @GetMapping(path = "/whoami", produces = "application/json")
     ResponseEntity<String> whoami(@RequestHeader("x-email") final String email) {
