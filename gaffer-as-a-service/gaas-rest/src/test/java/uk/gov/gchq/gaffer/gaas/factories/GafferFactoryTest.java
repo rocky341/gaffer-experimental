@@ -19,10 +19,14 @@ package uk.gov.gchq.gaffer.gaas.factories;
 import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import org.junit.jupiter.api.Test;
+import uk.gov.gchq.gaffer.federatedstore.operation.AddGraph;
 import uk.gov.gchq.gaffer.gaas.model.GaaSCreateRequestBody;
 import uk.gov.gchq.gaffer.gaas.model.v1.Gaffer;
 import uk.gov.gchq.gaffer.gaas.model.v1.GafferSpec;
 import uk.gov.gchq.gaffer.gaas.util.UnitTest;
+import uk.gov.gchq.gaffer.graph.hook.OperationAuthoriser;
+import uk.gov.gchq.gaffer.operation.Operation;
+import uk.gov.gchq.gaffer.operation.impl.get.GetAllElements;
 import uk.gov.gchq.gaffer.proxystore.operation.GetProxyProperties;
 import uk.gov.gchq.gaffer.proxystore.operation.GetProxyUrl;
 import uk.gov.gchq.gaffer.proxystore.operation.handler.GetProxyPropertiesHandler;
@@ -31,8 +35,11 @@ import uk.gov.gchq.gaffer.store.operation.declaration.OperationDeclaration;
 import uk.gov.gchq.gaffer.store.operation.declaration.OperationDeclarations;
 
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -158,6 +165,111 @@ class GafferFactoryTest {
         compareGaffer(expected, requestBody);
     }
 
+
+
+    @Test
+    public void federatedBigStoreRequestOperationAuthorisationWithNullValueInAddGraphClass_shouldNotOverrideToOneConfiguredinGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithNullValueInAddGraphClass(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+
+    @Test
+    public void federatedBigStoreRequestOperationAuthorisationWithEmptyAuths_shouldNotOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithEmptyAuths(), "graph", "config", "hooks");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithEmptyAuths(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestOperationAuthorisationWithAddGraphClassInvalidUserValue_shouldNotOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithAddGraphClassInvalidUserValue(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestWithValidOpAuthsInTheConfigYamlWithoutAddGraphClass_shouldOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithValidOpAuthsInTheConfigYamlWithoutAddGraphClass(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestOperationAuthorisationForAddGraphClassWithDefaultSystemUserValueAndOtherUsers_shouldOverrideToOneConfiguredinGafferSpecConfig() {
+
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithValidOpAuthsInTheConfigYamlWithAddGraphClass(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+
+
+    @Test
+    public void federatedBigStoreRequestWithAddGraphClassEmptyStringValueInOpAuthsConfigYaml_shouldNotOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithEmptyStringValueInAddGraphClass(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestWithIncorrectUserValuesOpAuthsInTheConfigYaml_shouldNotOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithIncorrectUserValues(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestOperationAuthorisationForAddGraphClassWithInvalidDefaultSystemUserValue_shouldOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookForAddGraphClassWithInvalidDefaultSystemUserValue(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+    }
+
+    @Test
+    public void federatedBigStoreRequestWithoutOperationAuthorisationClass_shouldNotOverrideToOneConfiguredInGafferSpecConfig() {
+        final GafferSpec federatedConfig = getGafferSpec();
+        GaaSCreateRequestBody gaaSCreateRequestBody = new GaaSCreateRequestBody("MyGraph", "Another description", null, "federatedBig", "10");
+        final Gaffer requestBody = GafferFactory.from(federatedConfig, gaaSCreateRequestBody);
+        federatedConfig.putNestedObject(getOperationAuthorizerHookWithoutOperationAuthorisationClass(), "graph", "config", "hooks");
+        final Gaffer expectedGaffer = getGaffer(federatedConfig, gaaSCreateRequestBody);
+        compareGaffer(expectedGaffer, requestBody);
+
+    }
+
+
     private LinkedHashMap<String, Object> getSchema() {
         final LinkedHashMap<String, Object> elementsSchema = new LinkedHashMap<>();
         elementsSchema.put("entities", new Object());
@@ -202,10 +314,10 @@ class GafferFactoryTest {
     private GafferSpec getFederatedStoreGafferSpec(final GafferSpec federatedSpec, final GaaSCreateRequestBody createGraphRequest) {
 
         final GafferSpec federatedConfig = getGafferSpec();
-
         federatedConfig.putNestedObject(createGraphRequest.getGraphId(), GRAPH_ID_KEY);
         federatedConfig.putNestedObject(createGraphRequest.getDescription(), DESCRIPTION_KEY);
         federatedConfig.putNestedObject(createGraphRequest.getConfigName(), CONFIG_NAME_KEY);
+        federatedConfig.putNestedObject(federatedSpec.getNestedObject( "graph", "config", "hooks"), "graph", "config", "hooks");
         federatedConfig.putNestedObject(getOperationDeclarations(federatedSpec), GAFFER_OPERATION_DECLARATION_KEY);
         federatedConfig.putNestedObject(createGraphRequest.getGraphId().toLowerCase() + "-" + NAMESPACE + "." + INGRESS_SUFFIX, INGRESS_HOST_KEY);
         federatedConfig.putNestedObject("/rest", INGRESS_API_PATH_KEY);
@@ -242,5 +354,90 @@ class GafferFactoryTest {
         return metadata;
     }
 
+    private static List<Object> getOperationAuthorizerHookWithValidOpAuthsInTheConfigYamlWithoutAddGraphClass() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(Operation.class.getName(), new ArrayList<>(Arrays.asList("User")));
+        auths.put(GetAllElements.class.getName(), new ArrayList<>(Arrays.asList("AdminUser", "SuperUser")));
+        final List<Object> opAuthorizer = getOperationAuthoriserHook(auths);
 
+        return opAuthorizer;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithValidOpAuthsInTheConfigYamlWithAddGraphClass() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), new ArrayList<>(Arrays.asList(DEFAULT_SYSTEM_USER)));
+        auths.put(Operation.class.getName(), new ArrayList<>(Arrays.asList("User")));
+        auths.put(GetAllElements.class.getName(), new ArrayList<>(Arrays.asList("AdminUser", "SuperUser")));
+        final List<Object> opAuthorizer = getOperationAuthoriserHook(auths);
+        return opAuthorizer;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithIncorrectUserValues() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(Operation.class.getName(), null);
+        auths.put(GetAllElements.class.getName(), new ArrayList<>(Arrays.asList("")));
+        final List<Object> opAuthorizer = getOperationAuthoriserHook(auths);
+        return opAuthorizer;
+    }
+
+    private static List<Object> getOperationAuthorizerHookForAddGraphClassWithInvalidDefaultSystemUserValue() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), new ArrayList<>(Arrays.asList("", "User")));
+        final List<Object> opAuthoriser = getOperationAuthoriserHook(auths);
+        return opAuthoriser;
+    }
+
+
+    private static List<Object> getOperationAuthorizerHookWithEmptyStringValueInAddGraphClass() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), new ArrayList<>(Arrays.asList("")));
+        final List<Object> opAuthorizer = getOperationAuthoriserHook(auths);
+        return opAuthorizer;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithNullValueInAddGraphClass() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), null);
+        final List<Object> opAuthoriser = getOperationAuthoriserHook(auths);
+        return opAuthoriser;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithEmptyAuths() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        final List<Object> opAuthoriser = getOperationAuthoriserHook(auths);
+        return opAuthoriser;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithAddGraphClassInvalidUserValue() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), new ArrayList<>(Arrays.asList("null")));
+        final List<Object> opAuthoriser = getOperationAuthoriserHook(auths);
+        return opAuthoriser;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithoutOperationAuthorisationClass() {
+        final Map<String, ArrayList> auths = new LinkedHashMap<>();
+        auths.put(AddGraph.class.getName(), new ArrayList<>(Arrays.asList("null")));
+        final List<Object> opAuthoriser = getOperationAuthorizerHookWithoutOperationAuthorisationClass(auths);
+        return opAuthoriser;
+    }
+
+    private static List<Object> getOperationAuthoriserHook(final Map<String, ArrayList> auths) {
+        final Map<String, Object> opAuthoriser = new LinkedHashMap();
+        opAuthoriser.put("class", OperationAuthoriser.class.getName());
+        opAuthoriser.put("auths", auths);
+
+        final List<Object> opAuthoriserList = new ArrayList<>();
+        opAuthoriserList.add(opAuthoriser);
+        return opAuthoriserList;
+    }
+
+    private static List<Object> getOperationAuthorizerHookWithoutOperationAuthorisationClass(final Map<String, ArrayList> auths) {
+        final Map<String, Object> opAuthoriser = new LinkedHashMap();
+        opAuthoriser.put("auths", auths);
+
+        final List<Object> opAuthoriserList = new ArrayList<>();
+        opAuthoriserList.add(opAuthoriser);
+        return opAuthoriserList;
+    }
 }
